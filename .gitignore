@@ -20,7 +20,7 @@ graphs/fig4.pdf
 graphs/fig3.pdf
 graphs/fig5.pdf
 
-#saves/irt2.rds
+saves/irt2.rds
 saves/irt1.rds
 
 saves/irt1_guess_itemloo.rds

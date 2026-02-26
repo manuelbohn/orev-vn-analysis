@@ -102,6 +102,10 @@ rasch_fit_mode_fit <- rasch_fit_fit%>%
   summarise(mode = estimate_mode(value),
             lci = hdi_lower(value),
             uci = hdi_upper(value))
+
+saveRDS(rasch_fit_mode_fit, "../saves/rasch_fit_mode_fit.rds")
+
+rasch_fit_mode_fit <- readRDS("../saves/rasch_fit_mode_fit.rds")
 ```
 
 
@@ -174,6 +178,10 @@ ggplot(coef_irt1_v%>%filter(word_class == "verb"),aes(y = reorder(item, Estimate
   scale_color_ptol(name = "")+
   theme_calc()
 
+saveRDS(coef_irt1_v, "../saves/coef_irt1_v.rds")
+
+coef_irt1_v <- readRDS("../saves/coef_irt1_v.rds")
+
 ```
 
 ```{r}
@@ -194,6 +202,10 @@ rasch_fit_mode_fit_v <- rasch_fit_fit_v%>%
   summarise(mode = estimate_mode(value),
             lci = hdi_lower(value),
             uci = hdi_upper(value))
+
+saveRDS(rasch_draws_fit_v, "../saves/rasch_draws_fit_v.rds")
+
+rasch_draws_fit_v <- readRDS("../saves/rasch_draws_fit_v.rds")
 ```
 
 ### 2PL Model
@@ -313,6 +325,10 @@ params2PL_v <- bind_rows(eta_v, alpha_v, .id = "nlpar") %>%
 	mutate(nlpar = factor(nlpar, labels = c("Easiness", "Discrimination")))%>%
   left_join(data%>%filter(word_class == "verb")%>%rename(item = target_word)%>%select(item, word_class)%>%distinct(item, .keep_all = T))
 
+saveRDS(params2PL_v, "../saves/params2PL_v.rds")
+
+params2PL_v <- readRDS("../saves/params2PL_v.rds")
+
 ggplot(params2PL_v,aes(y = reorder(item, Estimate), x = Estimate, xmin = Q2.5, xmax = Q97.5, col = word_class)) +
 	facet_grid(word_class~nlpar, scales = "free") +
 	geom_pointrange() +
@@ -373,12 +389,11 @@ bind_rows(icc2_v%>%mutate(model = "2PL"),
 ```{r}
 n_nouns <- n_distinct((data%>%filter(word_class == "noun"))$target_word)
 n_verbs <- n_distinct((data%>%filter(word_class == "verb"))$target_word)
-items <- data%>%distinct(target_word, .keep_all = T)%>% arrange(word_class, target_word)%>%pull(target_word)
-easiness_rasch <- coef_irt1%>%arrange(word_class, item)%>%pull(Estimate)
-infit <- rasch_fit_mode_fit %>% arrange(word_class, target_word)%>%filter(fit_index == "infit")%>%pull(mode)
-outfit <- rasch_fit_mode_fit %>% arrange(word_class, target_word)%>%filter(fit_index == "outfit")%>%pull(mode)
-disc_2PL <- params2PL%>%filter(nlpar == "Discrimination")%>%arrange(word_class, item)%>%pull(Estimate)
-
+# items <- data%>%distinct(target_word, .keep_all = T)%>% arrange(word_class, target_word)%>%pull(target_word)
+# easiness_rasch <- coef_irt1%>%arrange(word_class, item)%>%pull(Estimate)
+# infit <- rasch_fit_mode_fit %>% arrange(word_class, target_word)%>%filter(fit_index == "infit")%>%pull(mode)
+# outfit <- rasch_fit_mode_fit %>% arrange(word_class, target_word)%>%filter(fit_index == "outfit")%>%pull(mode)
+# disc_2PL <- params2PL%>%filter(nlpar == "Discrimination")%>%arrange(word_class, item)%>%pull(Estimate)
 verbs <- data%>%filter(word_class == "verb")%>%distinct(target_word, .keep_all = T)%>% arrange( target_word)%>%pull(target_word)
 easiness_rasch_v <- coef_irt1_v%>%filter(word_class == "verb")%>%arrange(word_class, item)%>%pull(Estimate)
 infit_v <- rasch_fit_mode_fit_v%>% arrange(target_word)%>%filter(fit_index == "infit")%>%pull(mode)
@@ -566,7 +581,7 @@ determine_size_v <- tibble()
 
     sim <- simulated_annealing_rasch(i)
 
-    verbs <- items[unlist(sim$best_subset) == TRUE]
+    sel <- verbs[unlist(sim$best_subset) == TRUE]
 
     sub_dat <- data%>%filter(target_word %in% sel)
 
@@ -585,11 +600,12 @@ determine_size_v <- tibble()
            iter = j,
            elpd_diff = as.numeric(comp%>%pull(elpd_diff)),
            se_diff = as.numeric(comp%>%pull(se_diff)),
-           ratio = as.numeric(comp%>%pull(ratio))
+           ratio = as.numeric(comp%>%pull(ratio)),
+           items = list(sel)
            #correlation = cor
            )
 
-    determine_size <- bind_rows(determine_size, row)
+    determine_size_v <- bind_rows(determine_size_v, row)
 
     saveRDS(determine_size_v, "../saves/determine_size_v.rds")
   }
