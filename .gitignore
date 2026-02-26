@@ -5,7 +5,7 @@
 #     git add -f my/ignore/file.foo
 # 
 # Put your project-specific ignores here:
-saves/irt*
+#saves/irt*
 
 *.tex
 
@@ -19,6 +19,9 @@ graphs/fig2.pdf
 graphs/fig4.pdf
 graphs/fig3.pdf
 graphs/fig5.pdf
+
+#saves/irt2.rds
+saves/irt1.rds
 
 saves/irt1_guess_itemloo.rds
 saves/irt1_guess.rds
