@@ -46,7 +46,6 @@ data <- bind_rows(
   read_csv("../data/orev-vn_data_lpz.csv")
 )%>%select(id, trial, word_class, target_word, correct, age, sex)
 
-
 ```
 
 
@@ -73,7 +72,7 @@ irt1 <- brm(
   prior = prior_1pl,
   control = list(adapt_delta = 0.95, max_treedepth = 12),
   cores = 4,
-  threads = threading(8), backend = "cmdstanr",
+  threads = threading(2),# backend = "cmdstanr",
   chains = 4,
   iter = 4000
 )%>%add_criterion(c("loo","waic")) 
