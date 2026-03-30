@@ -6,6 +6,7 @@ date: "2026-02-25"
 
 
 ```{r setup, include=FALSE}
+library(papaja)
 library(tidyverse)
 library(brms)
 library(ggthemes)
@@ -15,6 +16,7 @@ library(ggrepel)
 library(tidybayes)
 library(coda)
 library(mirt)
+library(readxl)
 ```
 
 
@@ -42,6 +44,15 @@ func <- function(x){
 # Data
 
 ```{r}
+verbs <- read_xlsx("../data/verbs_overview.xlsx")%>%
+  mutate(`Target word` = paste0(target_de, " ", "(to ",EN_translation...2,")"),
+         `Semantic` = paste0(SEMANTIC_de, " ", "(to ",EN_translation...4,")"),
+         `Phonological` = paste0(PHONOLOGICAL_de, " ", "(to ",EN_translation...8,")"),
+         `Unrelated` = paste0(UNRELATED_de, " ", "(to ",EN_translation...6,")"))%>%
+  mutate(`Selected` = ifelse(target_de %in% readRDS("../saves/selected_verbs.rds"), "yes", "no"))%>%
+  select(`Target word`, Semantic, Phonological, Unrelated, Selected)%>%
+  write_rds("../saves/verbs.rds")
+
 data <- bind_rows(
   read_csv("../data/orev-vn_data_lg.csv")%>%mutate(sex = ifelse(Gender == "Männlich", "m", "w")),
   read_csv("../data/orev-vn_data_lpz.csv")
@@ -463,46 +474,31 @@ disc_2PL_v <- params2PL_v%>%filter(nlpar == "Discrimination")%>%arrange(item)%>%
 ## Determine size
 
 ```{r}
-# determine_size_v <- tibble()
-# 
-#   for(j in 1:5){
-# 
-#   for (i in c(5:18)) {
-# 
-#     sim <- simulated_annealing_rasch(i)
-# 
-#     sel <- verbs[unlist(sim$best_subset) == TRUE]
-# 
-#     sub_dat <- data%>%filter(target_word %in% sel)
-# 
-#     m1PL <- update(irt1_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
-#   	m2PL <- update(irt2_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
-# 
-#   	comp <- loo_compare(m1PL, m2PL)%>%as_tibble(rownames = "model")%>%filter(model == "m1PL")%>%mutate(ratio = abs(elpd_diff)/(2*se_diff))
-# 
-#   	# sub_dat_cor <- sub_dat%>%
-#   	#   group_by(subjID)%>%
-#   	#   summarise(mean_sub = mean(correct))
-# 
-#   	#cor <- cor(sub_dat_cor$mean_sub,full$mean_full)
-# 
-#   	row <- tibble(size = i,
-#            iter = j,
-#            elpd_diff = as.numeric(comp%>%pull(elpd_diff)),
-#            se_diff = as.numeric(comp%>%pull(se_diff)),
-#            ratio = as.numeric(comp%>%pull(ratio)),
-#            items = list(sel)
-#            #correlation = cor
-#            )
-# 
-#     determine_size_v <- bind_rows(determine_size_v, row)
-# 
-#     saveRDS(determine_size_v, "../saves/determine_size_v.rds")
-#   }
-# 
-#   }
-# 
-# saveRDS(determine_size_v, "../saves/determine_size_v.rds")
+determine_size_v <- tibble()
+
+  for(j in 1:5){
+
+  for (i in c(5:18)) {
+
+    sim <- simulated_annealing_rasch(i)
+
+    sel <- verbs[unlist(sim$best_subset) == TRUE]
+
+    sub_dat <- data%>%filter(target_word %in% sel)
+
+    m1PL <- update(irt1_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
+  	m2PL <- update(irt2_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
+
+  	comp <- loo_compare(m1PL, m2PL)%>%as_tibble(rownames = "model")%>%mutate(items = list(sel), size = i, iter = j)%>%mutate_at(c(2:9), as.numeric)
+
+    determine_size_v <- bind_rows(determine_size_v, comp)
+
+    saveRDS(determine_size_v, "../saves/determine_size_v.rds")
+  }
+
+  }
+
+saveRDS(determine_size_v, "../saves/determine_size_v.rds")
 
 determine_size_v <- readRDS("../saves/determine_size_v.rds")
 
@@ -681,5 +677,20 @@ icc1_c %>%
   ylim(0,1)+
   theme_few()+
   theme(legend.position = c(0.9, 0.5))
+```
+
+# Visuals
+
+```{r}
+psize <- determine_size_v%>%
+  mutate(ratio = ifelse(elpd_diff == 0,0,ratio))%>%
+  pivot_longer(cols = c(ratio), names_to = "type",values_to = "value")%>% 
+  ggplot(aes(x = factor(size), y = value))+
+  geom_hline(yintercept = 1, lty = 3, alpha =0.75)+
+  geom_point(pch = 1, size = 3)+
+  #geom_line()+
+  #facet_grid(type~. , scales = "free_y")+
+  theme_bw()+
+  labs(x = "No. of items", y = expression(paste("Model comparison: ", frac(Delta ~ elpd, "2 *"~SE(Delta ~ elpd)))))
 ```
 
