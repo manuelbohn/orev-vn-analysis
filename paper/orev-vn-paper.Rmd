@@ -1,47 +1,56 @@
 ---
-title             : "oREV-VN: A Rasch-compliant subtest of receptive verb comprehension for the oREV"
-shorttitle        : "Title"
+title             : "oREV-VN: An extension of the oREV vocabulary test with Rasch-compliant verb comprehension items"
+shorttitle        : "Verb comprehension items for the oREV"
 
 author: 
-  - name          : "First Author"
-    affiliation   : "1"
+  - name          : "Manuel Bohn"
+    affiliation   : "1,2"
     corresponding : yes    # Define only one corresponding author
-    address       : "Postal address"
-    email         : "my@email.com"
+    address       : "Universitätsallee 1, 21335 Lüneburg, Germany"
+    email         : "manuel.bohn@leuphana.de"
     role: # Contributorship roles (e.g., CRediT, https://credit.niso.org/)
       - "Conceptualization"
-      - "Writing - Original Draft Preparation"
+      - "Formal Analysis"
+      - "Writing - Original Draft"
       - "Writing - Review & Editing"
-  - name          : "Ernst-August Doelle"
-    affiliation   : "1,2"
+  - name          : "Chiara Carraro"
+    affiliation   : "1"
     role:
+      - "Resources"
       - "Writing - Review & Editing"
-      - "Supervision"
+  - name          : "Eugenia Rykova"
+    affiliation   : "3"
+    role:
+      - "Resources"
+  - name          : "Julia Prein"
+    affiliation   : "1"
+    role:
+      - "Software"
+      - "Writing - Review & Editing"
+  - name          : "Natalia Gagarina"
+    affiliation   : "4"
+    role:
+      - "Resources"
+      - "Writing - Review & Editing"
+
 
 affiliation:
   - id            : "1"
-    institution   : "Wilhelm-Wundt-University"
+    institution   : "Institute of Psychology in Education, Leuphana University Lüneburg, Germany"
   - id            : "2"
-    institution   : "Konstanz Business School"
+    institution   : "Department of Comparative Cultural Psychology, Max Planck Institute for Evolutionary Anthropology, Leipzig, Germany"
+  - id            : "3"
+    institution   : "Katholische Universität Eichstätt-Ingolstadt, Germany"
+  - id            : "4"
+    institution   : "Leibniz-Zentrum Allgemeine Sprachwissenschaft, Berlin, Germany"
 
 authornote: |
-  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
-
-  Enter author note here.
+  We thank Ewa Haman, Magdalena Łuniewska and their teams for supporting us during our work on the oREV-NV test. A special thank goes to Tanja Rinker for the linguistic part of the collaboration. For creating the numerous illustrations, painting and repainting we would like to express our sincere gratitude to Loreta Valantiejienė. Manuel Bohn was funded by a Jacobs Foundation Research Fellowship (Grant No. 2022-1484-00). Manuel Bohn, Chiara Carraro and Julia Prein were funded by a Lower Saxony Impulse Professorship through the zukunft.niedersachsen program awarded to Manuel Bohn. 
 
 abstract: |
-  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
-  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
-  One sentence clearly stating the **general problem** being addressed by  this particular study.
-  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
-  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
-  One or two sentences to put the results into a more **general context**.
-  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
+  Research on early language development requires high-quality open access instruments to assess individual differences in early language abilities. The oREV is such an instrument to assess receptive vocabulary in three- to eight-year-old German-speaking children. However, it has been limited to nouns. In this paper, we report on the addition of a verb items to the oREV. We constructed a larger initial item pool and collected data from a large sample of children (N = 567) in the target age range. We used data-driven item selection to select Rasch-compliant items which were added to the existing test to form the oREV-VN. There was a strong correlation between performance for verbs and nouns and the combined task showed good reliability. The oREV-VN is freely available via the following link: https://devpsy.web.leuphana.de/orev-vn/.
   
-  <!-- https://tinyurl.com/ybremelq -->
-  
-keywords          : "keywords"
-wordcount         : "X"
+keywords          : "language development, vocabulary, individual differences, Item Response Models"
 
 bibliography      : "library.bib"
 
@@ -72,26 +81,124 @@ knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
 
 ```{r}
 data <- bind_rows(
-  read_csv("../data/orev-vn_data_lg.csv")%>%mutate(sex = ifelse(Gender == "Männlich", "m", "w")),
-  read_csv("../data/orev-vn_data_lpz.csv")
-)%>%select(id, trial, word_class, target_word, correct, age, sex)
+  read_csv("../data/orev-vn_data_lg.csv")%>%mutate(sex = ifelse(Gender == "Männlich", "m", "w"), source = "lg"),
+  read_csv("../data/orev-vn_data_lpz.csv")%>%mutate(source = "lpz")
+)%>%select(id, trial, word_class, target_word, correct, age, sex, source)%>%
+  filter(!is.na(age))
 ```
 
+# Introduction 
+
+Research on language development critically relies on studying individual differences. On the one hand, individual differences in early language abilities help to identify factors influencing language acquisition and thereby lay the empirical basis for building theories of language acquisition [@bohn2026language; @frank2021variability; @donnelly2021longitudinal; @rowland2025constructing; @kidd2018individual]. On the other hand, individual differences in early language abilities relate to later life outcomes [@bornstein2018stability; @schoon2010children; @morgan201524; @marchman2008speed; @walker1994prediction; @bleses2016early; @golinkoff2019language; @pace2017identifying; @pace2019measuring]. No matter the research question, the quality and robustness of the results critically hinge on the instruments used for measuring individual differences in early language abilities. In this paper, we report on the extension of a high-quality, open access task to assess receptive vocabulary in German, the oREV [open REceptive Vocabulary task, @bohn2024orev].
+
+Research on early language abilities often focuses on vocabulary, that is how many and which words children are able to produce and understand. Even though a broad range of tasks to assess vocabulary already exists [for receptive vocabulary in English and German, see e.g., @dunn1965peabody; @dunn1997british; @golinkoff2017user; @kiese2005awst; @kauschke2002patholinguistische; @lenhard2015peabody; @gluck2011wortschatz], most existing measures are either proprietary and thus come with high costs of using them in research with large sample sizes, and/or lack a clear measurement model, that is, items for the test have been assembled based on researchers' intuitions and not selected because of the way they measure the ability in question. Thus, despite many existing options, there is still a need for freely available, high-quality measures of early language abilities.
+
+A suitable framework for constructing such measures is Item Response Theory [IRT, see e.g.  @kubinger2006psychologische; @lord2012applications]. IRT has a clear and simple measurement model: the basic assumptions of --unidimensional-- IRT is that all items measure the same latent ability. Each item is linked to the latent ability by a probability function (e.g. a logistic curve called item characteristic curve or ICC). It describes how likely individuals with different values on the latent ability are to show a particular response. Items may vary in difficulty and discrimination. Item difficulty determines the ICC's position on the latent ability (for binary responses: the value on the latent ability for which there is a 50% probability of solving the item), while discrimination determines the slope of the curve and thus how the probability changes across the latent ability. All IRT-models assume that items vary in difficulty, but they make different assumptions about discrimination. The simplest and most restrictive model, the Rasch model [1-parameter-logistic model or 1PL, see @rasch1980probabilistic] assumes that all items have the same discrimination. In 2PL models, items are also allowed to vary in discrimination. Further extensions like the 3PL model further allow items to vary in their probability of being answered correctly by chance. Taken together, IRT provides a simple and clear measurement model for how the items of a task relate to the latent ability. When constructing a new task, items can be selected based on their characteristics to ensure the resulting task conforms to a particular measurement model. From a a task construction point of view, it is highly desirable to construct a Rasch-compliant task because only in such a situation is the sum score a sufficient statistic [@birnbaum1968test].   
+
+In this paper, we describe a new verb substest for the oREV, a receptive vocabulary test for German-speaking children between three and eight years of age. It was developed as an extension of the Cross-linguistic Lexical Tasks [CLTs; @haman2015designing] and only included nouns [@bohn2024orev]. The oREV is a picture selection task, that is, children are shown four pictures and asked by a verbal prompt to select one of them. The oREV has been designed to comply with the Rasch model, making its scoring very easy. The creation and selection of the new items followed the same logic as the creation of the oREV itself: we started with a larger item pool which was administered to a large sample of children of the target age range. Subsequently, we used a data-driven approach to select items that comply with the Rasch model and that differ in difficulty. Together with the nouns included in the previous version, the new items constitute the oREV-VN.
 
 # Methods
 
+## Data, code and materials availability statement
+
+All data and code is publicly available in the following repository: https://github.com/manuelbohn/orev-vn-analysis. The final test is freely available at: https://devpsy.web.leuphana.de/orev-vn/.  
+
+## Ethics statement
+
+The analysis reported here used previously collected data which was collected following ethical approval from the Ethical Review Board at Leuphana University Lüneburg (Appl. No. 202409_17_Bohn_SCDAC) and the MPG Ethics Commission in Munich, Germany, falling under an umbrella ethics application (Appl. No. 2021_45).  
+
 ## Participants
 
-## Material
+A total of `r n_distinct(data$id)` children (`r n_distinct(data$id[data$sex == "w"])` female, $m_{age}$ = `r mean(data$age)`, age range = `r round(range(data$age)[1],2)` - `r round(range(data$age)[2],2)`) participated in the study. Data was collected in two different locations using different modes: `r n_distinct(data$id[data$source == "lpz"])` children were recruited in Leipzig, Germany, a mid-sized city in eastern Germany with ~600 000 inhabitants, and tested online; webcam recordings were collected for validation purposes. `r n_distinct(data$id[data$source == "lg"])` children were recruited in Lüneburg, a small city in northern Germany with ~75 000 inhabitants, and tested in person in their kindergarten. We did not collect individual-level data on multilingualism or other demographic features. Both populations, however, are mostly comprised of monolingual German-speaking families. 
 
-## Procedure
+## Task
 
-## Data analysis
+The oREV [@bohn2024orev] is a picture selection task with 22 nouns as target words. It is implemented as an interactive picture book on a website using `JavaScript` and `HTML`. On each trial, children see four pictures and hear a verbal prompt to select one of them (prompt: "Zeige mir X" - English: "show me X"). The newly added verbs (20 items) were created to fit this scheme and embedded within the existing nouns. Verbs were inserted within the nouns such that no more than three items from the same word class were presented in a row and that later items were expected to be more difficult.
 
-# Results
+For each target word, there were three distractors: a semantic distractor depicting a semantically related verb; a phonological distractor depicting a similarly sounding verb; an unrelated distractor depicting a semantically and phonologically unrelated verb. Figure \@ref(fig:fig1) shows a screenshot from the task explaining the different distractor types. Table \@ref(tab:tab1) in the Appendix lists all verbs and distractors. Children selected an answer by clicking on or touching the respective picture. If necessary, the verbal prompts could be repeated when touching a loudspeaker button. All children received the same order of items. 
+
+(ref:figlab1) Screenshot from the task with explanation on the different distractor types. Children selected a picture by clicking on or touching it. 
+
+```{r fig1, include = T, fig.align = "center", fig.cap = "(ref:figlab1)", out.width="100%"}
+knitr::include_graphics("../visuals/fig1.pdf")
+```
+
+## Verb item pool
+
+The selection of verb items followed similar criteria to those applied to noun items [@bohn2024orev]. The first general criterion, as for nouns, was imageability and the potential for pictorial representation. Since verbs often represent relational concepts and have valences involving multiple participants (e.g., agents and patients) and action-related objects, this relational complexity was taken into account when selecting the items and designing distractors. For example, the verb operieren (eng.: to operate) involves a surgeon, a patient and surgical instruments. Therefore care was taken to ensure that both the semantic distractor ("impfen", eng.: to vaccinate) and the phonological distractor ("spazieren", eng.: to go for a walk) also depicted multiple human participants.
+
+A second criterion was the age of acquisition of the verbs coupled with their complexity [@gentner1982whynouns; @kauschke2002early]. The age of acquisition of verbs is influenced, additionally to semantic factors, by morphosyntactic properties, including valence and transitivity, as verbs encode the syntactic relationship within the clause [@gagarina2006acquisition; @kuperman2012aoa; @tomasello2009constructing]. Given that children's early verb vocabularies are dominated by a relatively small set of highly frequent and semantically general verbs denoting everyday activities, such as eating, running, painting, and falling, these early-acquired verbs were included in the item set alongside more complex verb items to ensure a broader range of age of acquisition and linguistic characteristics. The set of more complex items comprised less frequent verbs associated with literary or written language, such as "torkeln" (eng.: to stagger) or "schnorcheln" (eng.: to snorkel), as well as verbs denoting mental states, such as "bekennen" (eng.: to confess). Particular attention was also paid to morphological complexity, and the selection contained verbs with simplex roots, such as "liefern" (eng.: to deliver) as well as with separable and inseparable prefixes, including "abseilen" (eng.: to rappel), "befreien" (eng.: to free), or "betrachten" (eng.: to observe). All 20 items in teh item pool can be found in Table \@ref(tab:tab1) in the Appendix.
+
+
+## Descriptive results
+
+```{r}
+desc <- readRDS("../saves/descrivitve_results.rds")%>%
+  mutate_if(is.numeric, round, digits=2)
+```
+
+
+Before selecting items, we briefly report the results of the data collection with all items. To this end, we fit a Bayesian generalized linear mixed model, fit in `R` using the package `brms` [@burkner2017brms], predicting correct responses by age (centered and scaled), word class (noun or verb) and their interaction. We included random intercepts for participant with random slopes for word class, but deliberately left the analysis of item effects (i.e. random intercepts for item) to the IRT analysis reported below. The `brms` model notation was: `correct ~ age * word_class + (word_class|id)`. Figure \@ref(fig:fig2)A shows that performance substantially increased with age ($\beta$ = `r desc%>%filter(par == "z.age")%>%pull(Estimate)`, 95% CrI: `r desc%>%filter(par == "z.age")%>%pull(Q2.5)` - `r desc%>%filter(par == "z.age")%>%pull(Q97.5)`). On average, the verbs included in the task were more difficult compared to nouns ($\beta$ = `r desc%>%filter(par == "word_classverb")%>%pull(Estimate)`, 95% CrI: `r desc%>%filter(par == "word_classverb")%>%pull(Q2.5)` - `r desc%>%filter(par == "word_classverb")%>%pull(Q97.5)`) and showed a slightly less pronounced improvement with age (interaction age and word class: $\beta$ = `r desc%>%filter(par == "z.age:word_classverb")%>%pull(Estimate)`, 95% CrI: `r desc%>%filter(par == "z.age:word_classverb")%>%pull(Q2.5)` - `r desc%>%filter(par == "z.age:word_classverb")%>%pull(Q97.5)`). Performance on nouns and verbs was also highly correlated (*r* = 0.71; see Figure \@ref(fig:fig2)B).
+ 
+
+## Item selection
+
+The goal of the item selection procedure was to select a set of Rasch-compliant items. We used a similar selection procedure as in the creation of the original oREV [@bohn2024orev; see also @bohn2025previc]. That is, we used the collected data to compute fit indices, item difficulty and item discrimination for each item, combined them in an objective function and used an algorithm to optimize said function and thereby select the best subset of items. Item selection was based on the data for the newly added verbs only. Later, we report how the selected verbs fit in with the already existing nouns of the oREV. 
+
+(ref:figlab2) Differences and correlations between word classes. Panel A) shows predicted developmental trajectories (with 95% CrI) for the two word classes. Points shows the proportion of correct responses for each individual and word class. Color shows word class. Panel B) shows the correlation between word classes. Color shows the child's age. Dotted lines in both panels shows chance level.  
+
+```{r fig2, include = T, fig.align = "center", fig.cap = "(ref:figlab2)", out.width="100%"}
+knitr::include_graphics("../visuals/fig2.pdf")
+```
+
+### IRT-modelling
+
+All IRT models were fit in a Bayesian framework in `R` using the `brms` package [@burkner2017brms]. Prior settings and the code to fit the models can be found in the associated online repository (see code availability statement). For an excellent tutorial on who to fit IRT models using `brms` see @burkner2019bayesian. We fit a Rasch and a 2PL model to the verb data. These models were used to compute the following parameters for each of the 20 verbs: difficulty, In- and Outfit, and discrimination (based on 2PL model). Both models accounted for the guessing probability of 25%.  
+
+Item difficulty denotes the level of ability at which, according to the Rasch model, one has a 50% chance of solving an item. In- and Outfit measure how much a person's response to an item differs from what the model predicts, considering the item's difficulty and the person's ability. These parameters show how accurately the model predicted the responses. We calculated In- and Outfit values by drawing from the model's expected posterior predictive distribution (using the `add_epred_draws` function) for each item and person pair. For each draw, we calculated the difference between the predicted and actual responses. The average of these squared differences is the Outfit. To calculate the Infit, we weighted the squared differences by item information, which is the product of the probabilities of answering yes and no. In both cases, a value closer to 1 indicates a better fit. This process generated a distribution of In- and Outfit values for each item. We used the mode of these values for each item. Discrimination is the slope of the item characteristic curve. The larger the discrimination, the steeper the slope and the better the item discriminates between different levels of ability. Discrimination parameters were drawn from the 2PL model because the Rasch model assumes all items to have the same discrimination.
+
+### Selection procedure
+
+We used the same objective function as in @bohn2024orev; here, the aforementioned parameters were combined to reflect the selection criteria which would later be used in the automated selection process. Item difficulties should be spread over all sections of the latent ability; to quantify this requirement, we computed the standard deviation of the distance (in difficulty estimates) between adjacent items. Thus, for any given subset, we first sorted all items by difficulty and then subtracted the difficulty of adjacent items. A lower standard deviation of these distances meant little variation in distances between items and thus an overall more equal spread over the latent ability. Second, we used In- and Outfit values for each item computed in the previous step to quantify how well an item fit the Rasch model. Third, we computed the variance of the discrimination parameters in the subset. Lower values indicated more similar discrimination parameters.
+
+The objective function was defined as a weighted sum of these parameters. Weights were introduced for each parameter to bring them on a comparable scale and to emphasize requirements: the standard deviation for item difficulties was multiplied by -1/3, Infit values by -4, Outfit values by -2 and the variance of the discrimination parameters by -10. This procedure always yielded negative numbers with larger original parameters resulting in more negative numbers. When the process described below aimed to maximize the score, smaller absolute values for each parameter were favored.
+
+We used simulated annealing [@kirkpatrick1983optimization] to identify the most optimal items for any given subset size. Simulated annealing entails a systematic search through the extensive set of potential subsets, beginning with a randomly chosen starting subset. Next, minor alterations are suggested by swapping certain items within the current subset with items from outside it. Should a suggested modification yield a better score for the objective function, the change is adopted, and the improved subset serves as the basis for future suggestions. To avoid "getting stuck" in suboptimal solutions, the process also probabilistically accepts modifications that do not improve the score of the objective function. The likelihood of accepting a degrading proposal is controlled by a parameter called "temperature," which progressively decreases from a high initial value to a lower value throughout the simulation. During the initial "hot" phase, the search is more exploratory, frequently accepting proposals that do not improve the score to allow transitions between local optima, thereby facilitating the discovery of the global optimum. As the simulation advances into the later "cool" phases, the search becomes more focused, and only proposals that improve the score are accepted. 
+
+While the simulated annealing algorithm identifies the best items for a specific subset size, it does not determine the ideal size itself. To address this, the algorithm was run on subsets of varying sizes. The objective was to identify the largest subset that yielded a satisfactory fit according to the Rasch model. Thus, for each size, the model fit was evaluated using Bayesian approximate leave-one-out cross-validation [@vehtari2017practical], comparing the Rasch model to a 2PL model based on the difference in expected log posterior density (ELPD) estimates and their standard errors (SE). Following recommendations in the literature, models were considered equivalent if the ELPD difference exceeded twice the standard error of the difference [@sivula2020uncertainty]. 
+
+Figure \@ref(fig:fig3)A shows the result of the item selection process. For subsets with up to 11 items, the Rasch model provided a similar or better fit compared to the 2PL model. Thus, we decided to select 11 items. In theory, the simulated annealing algorithm could select different items for each size. We therefore ran the algorithm 50 times and selected those items that were selected most frequently. It turned out that there was no variability for 11 items so that always the same items were selected. Table \@ref(tab:tab1) in the Appendix lists the selected items. 
+
+Next, we evaluated differential item functioning (DIF) for the selected subset [@burkner2019bayesian; @holland2012differential]. DIF describes a situation in which the difficulty of an item varies between groups within the dataset, suggesting that the item characteristics are not independent of the particular population that was tested. We assessed DIF based on the data collection locations by fitting a Rasch model to the data but estimating separate difficulty parameters for the items for the two data collection locations. Results showed no signs of DIF, that is, the item difficulties were almost perfectly correlated (r = 0.98) and the CrIs for the item difficulty parameters for the two subgroups always overlapped.  
+
+As a last step, we fit a 1PL model to the joint data for the nouns and newly selected verbs. The corresponding ICCs can be found in Figure \@ref(fig:fig3). They show that the selected verbs tended to be more difficult compared to the already existing nouns so that, for example, the two most difficult items were verbs. 
+
+## Psychometric properties
+
+```{r}
+val <- readRDS("../saves/val.rds")
+```
+
+
+To assess reliability, we computed KR-20 [@kuder1937theory]. For the newly selected verbs alone, reliability was rather low (KR-20 = `r round(readRDS("../saves/rel_v.rds"),2)`). The reason for the low reliability of the verb items alone is most likely the reduced variability in the data due to the relatively small number of items and their clustering in difficulty. In support of this view, reliability of the full oREV-VN (combining nouns and verbs) was much better (KR-20 = `r round(readRDS("../saves/rel_c.rds"),2)`).
+
+To assess validity, we correlated performance in the verb and the noun items and found a strong positive correlation between the two (r = `r round(val$estimate,2)`, 95% CI = `r round(val$conf.int[1],2)` - `r round(val$conf.int[2],2)`). This correlation is lower compared to the one reported in Figure \@ref(fig:fig2)B; we suspect similar reasons -- reduced variability due to fewer items and clustering in difficulty -- as for the comparatively lower reliability of the verb items compared to the full oREV-VN.
+
+(ref:figlab3) Model comparison and verb items. Panel A) shows the result of a model comparison between a 1PL and 2PL model for different subsets of items. Each point shows an independent run of the model comparison. A value of 0 (solid line) means model equivalence. Values to the left suggest a better fit of the 1PL model, values to the right a better fit of the 2PL model. Models are considered to be significantly different if the ratio exceeds the value of 1 in favor of one over the other model. Panel B) shows the item characteristic curves for all items of the oREV-VN. Newly added verbs are shown in red.
+
+```{r fig3, include = T, fig.align = "center", fig.cap = "(ref:figlab3)", out.width="100%"}
+knitr::include_graphics("../visuals/fig3.pdf")
+```
 
 # Discussion
 
+We report on the expansion of the oREV, a German open-access receptive vocabulary test for nouns, by adding verb items, thereby constituting the oREV-VN. An initial verb item pool of 20 items was created and, together with the nouns from the original oREV, administered to a large sample of children between three and eight years of age. From this pool, eleven verb items were selected in a data driven way to be Rasch-compliant and to vary in difficulty. Reliability of the veerb items was comparatively low when assessed alone but good when considering nouns and verbs together. In terms of validity, children who performed better on verbs, also performed better on nouns.
+
+The selected verbs tend to be more difficult compared to the already existing nouns of the oREV. As such, the verbs constitute a useful extension because they allow for more precise measurement in children with higher receptive vocabulary skills. However, it is important to acknowledge that the verb items alone have some less desired properties. Instead of being evenly spread across the entire latent ability, the items tend to cluster in certain locations, making the items partly redundant. This clustering is not just a feature of the selected items, but was also visible when considering all verbs. Given the guessing probability of 25%, having redundant items in a task is still useful, however, the variability they are likely to induce -- when applied alone -- is going to be limited. This is reflected in the rather low reliability estimate for the verb items. As a consequence, we do not recommend using the verb items as a stand-alone task but to use the full oREV-VN consisting of verbs and nouns. 
+
+As of now, the oREV-VN is only available in German. Adaptations to other languages are currently ongoing or in planning. Depending on the cultural and linguistic context to which the task will be adapted, the process will most likely require exchanging some items. For example, the verb "verloben" (eng.:: to get engaged) is tied to a cultural context in which engagements are practiced. Nonetheless, such adaptations open the possibility for analyzing whether items vary in difficulty across languages and whether tasks as a whole show measurement invariance [see e.g. @kachergis2025creation for a recent example of such an approach]. 
+
+Taken together, the newly added verbs extend the oREV in an important way, making the resulting oREV-VN a versatile and comprehensive research tool to capture individual differences in receptive vocabulary. The item selection process in an IRT framework showcases how data-driven methods can benefit the design of new research tools. 
 
 \newpage
 
@@ -102,10 +209,10 @@ data <- bind_rows(
 
 # Appendix
 
-```{r}
+```{r tab1, include = T}
 apa_table(
   readRDS("../saves/verbs.rds"), 
-  , caption = "All items considered and final selection for the oREV-VN"
+  , caption = "All verbs considered and final selection for the oREV-VN"
   , align = c(rep("m{3cm}", 4), "m{1cm}")
   , longtable = TRUE
   , note = "English translations in parenthesis"

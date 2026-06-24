@@ -17,6 +17,10 @@ library(tidybayes)
 library(coda)
 library(mirt)
 library(readxl)
+library(ggpubr)
+library(testing)
+require(cowplot)
+library(grid)
 ```
 
 
@@ -44,24 +48,44 @@ func <- function(x){
 # Data
 
 ```{r}
-verbs <- read_xlsx("../data/verbs_overview.xlsx")%>%
-  mutate(`Target word` = paste0(target_de, " ", "(to ",EN_translation...2,")"),
-         `Semantic` = paste0(SEMANTIC_de, " ", "(to ",EN_translation...4,")"),
-         `Phonological` = paste0(PHONOLOGICAL_de, " ", "(to ",EN_translation...8,")"),
-         `Unrelated` = paste0(UNRELATED_de, " ", "(to ",EN_translation...6,")"))%>%
-  mutate(`Selected` = ifelse(target_de %in% readRDS("../saves/selected_verbs.rds"), "yes", "no"))%>%
-  select(`Target word`, Semantic, Phonological, Unrelated, Selected)%>%
-  write_rds("../saves/verbs.rds")
+data <-read_csv("../data/data.csv")
+```
+# Age and condition effects
 
-data <- bind_rows(
-  read_csv("../data/orev-vn_data_lg.csv")%>%mutate(sex = ifelse(Gender == "Männlich", "m", "w")),
-  read_csv("../data/orev-vn_data_lpz.csv")
-)%>%select(id, trial, word_class, target_word, correct, age, sex)
+```{r}
+mdata <- data%>%
+  mutate(z.age = scale(age),
+         correct = as.numeric(correct))
 
+
+bm1 <- brm(correct ~ z.age * word_class + (word_class|id),
+    data = mdata,
+    chains = 4,
+    cores = 4,
+    iter = 4000,
+    family = bernoulli(),
+    threads = threading(2),
+    control = list(adapt_delta = 0.95, max_treedepth = 20)
+    )
+
+brms::fixef(bm1)%>%as_tibble(rownames = "par")%>%saveRDS("../saves/descrivitve_results.rds")
+```
+
+```{r}
+ndata <- mdata%>%
+  select(word_class, z.age, age)
+
+
+post <- fitted(bm1, newdata = ndata, re_formula =NA)%>%
+  bind_cols(ndata)
+
+saveRDS(post, "../saves/post.rds")
 ```
 
 
-### 1PL Model
+# IRT Models
+
+## 1PL Model
 
 ```{r}
 prior_1pl <- 
@@ -181,7 +205,7 @@ rasch_fit_mode_fit_v%>%
 ```
 
 
-### 2PL Model
+## 2PL Model
 ```{r}
 prior_2pl <- 
   prior("normal(0, 2)", class = "b", nlpar = "eta") +
@@ -359,6 +383,8 @@ score_fn <- function(subset) {
 	for(i in 1:sum(subset_c)-1) {
 		nn_dists[i] <- easinesses[i+1] - easinesses[i]
 	}
+	
+	range <- -1/sd(easinesses)
 	spacing <- -1*sd(nn_dists)/3
 	
 	var_disc_sample <- disc_2PL_v[subset_c]
@@ -375,7 +401,7 @@ score_fn <- function(subset) {
 	outfit_dist <- unlist(lapply(outfit_sample, func))
   mean_outfit <- -2*mean(outfit_dist)
   
-	return(spacing + mean_infit + mean_outfit+ var_disc_2PL)
+	return(spacing + range+ mean_infit + mean_outfit+ var_disc_2PL)
 }
 
 
@@ -474,55 +500,45 @@ disc_2PL_v <- params2PL_v%>%filter(nlpar == "Discrimination")%>%arrange(item)%>%
 ## Determine size
 
 ```{r}
-determine_size_v <- tibble()
-
-  for(j in 1:5){
-
-  for (i in c(5:18)) {
-
-    sim <- simulated_annealing_rasch(i)
-
-    sel <- verbs[unlist(sim$best_subset) == TRUE]
-
-    sub_dat <- data%>%filter(target_word %in% sel)
-
-    m1PL <- update(irt1_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
-  	m2PL <- update(irt2_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
-
-  	comp <- loo_compare(m1PL, m2PL)%>%as_tibble(rownames = "model")%>%mutate(items = list(sel), size = i, iter = j)%>%mutate_at(c(2:9), as.numeric)
-
-    determine_size_v <- bind_rows(determine_size_v, comp)
-
-    saveRDS(determine_size_v, "../saves/determine_size_v.rds")
-  }
-
-  }
-
-saveRDS(determine_size_v, "../saves/determine_size_v.rds")
+# determine_size_v <- tibble()
+# 
+#   for(j in 1:5){
+# 
+#   for (i in c(5:18)) {
+# 
+#     sim <- simulated_annealing_rasch(i)
+# 
+#     sel <- verbs[unlist(sim$best_subset) == TRUE]
+# 
+#     sub_dat <- data%>%filter(target_word %in% sel)
+# 
+#     m1PL <- update(irt1_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
+#   	m2PL <- update(irt2_v, newdata =sub_dat, chains = 4, cores = 4, threads = threading(8), backend = "cmdstanr")%>%add_criterion(c("loo"))
+# 
+#   	comp <- loo_compare(m1PL, m2PL)%>%as_tibble(rownames = "model")%>%mutate(items = list(sel), size = i, iter = j)%>%mutate_at(c(2:9), as.numeric)
+# 
+#     determine_size_v <- bind_rows(determine_size_v, comp)
+# 
+#     saveRDS(determine_size_v, "../saves/determine_size_v.rds")
+#   }
+# 
+#   }
+# 
+# saveRDS(determine_size_v, "../saves/determine_size_v.rds")
 
 determine_size_v <- readRDS("../saves/determine_size_v.rds")
-
-determine_size_v%>%
-  mutate(ratio = ifelse(elpd_diff == 0,0,ratio))%>%
-  pivot_longer(cols = c(ratio), names_to = "type",values_to = "value")%>% 
-  ggplot(aes(x = factor(size), y = value))+
-  geom_hline(yintercept = 1, lty = 3, alpha =0.75)+
-  geom_point(pch = 1, size = 3)+
-  #geom_line()+
-  #facet_grid(type~. , scales = "free_y")+
-  theme_bw()+
-  labs(x = "No. of items", y = "Model comparison ratio\nabs(elpd_diff)/(2*se_diff)")
-
 ```
+
+## Selected items
 
 ```{r}
 sel_verbs <- tibble()
 
-for(j in 1:50){
+for(j in 1:1){
 
   #for (i in c(5:18)) {
 
-    sim <- simulated_annealing_rasch(10)
+    sim <- simulated_annealing_rasch(11)
 
     #sel <- items[c(rep(TRUE, 22), unlist(sim$best_subset) == TRUE)]
     sel <-verbs[unlist(sim$best_subset) == TRUE]
@@ -543,7 +559,7 @@ sel_verbs%>%
   filter(word_class == "verb")%>%
   group_by(items)%>%
   summarise(sum = n())%>%
-  ggplot(aes(x = reorder(items, -sum), y = sum/50))+
+  ggplot(aes(x = reorder(items, -sum), y = sum/5))+
   geom_bar(stat = "identity")+
   labs(x = "Verb", y = "Proportion selected")+
   theme_minimal()+
@@ -555,10 +571,12 @@ sel_verbs%>%
 verbs_selected <- sel_verbs%>%
   group_by(items)%>%
   summarise(n = n())%>%
-  head(10)%>%
+  head(11)%>%
   pull(items)
 
 saveRDS(verbs_selected, "../saves/selected_verbs.rds")
+
+verbs_selected <- readRDS("../saves/selected_verbs.rds")
 ```
 
 
@@ -599,10 +617,124 @@ icc1_v %>%
   theme_bw()
 ```
 
+```{r}
+verbstab <- read_xlsx("../data/verbs_overview.xlsx")%>%
+  mutate(`Target word` = paste0(target_de, " ", "(to ",EN_translation...2,")"),
+         `Semantic` = paste0(SEMANTIC_de, " ", "(to ",EN_translation...4,")"),
+         `Phonological` = paste0(PHONOLOGICAL_de, " ", "(to ",EN_translation...8,")"),
+         `Unrelated` = paste0(UNRELATED_de, " ", "(to ",EN_translation...6,")"))%>%
+  mutate(`Selected` = ifelse(target_de %in% readRDS("../saves/selected_verbs.rds"), "yes", "no"))%>%
+  select(`Target word`, Semantic, Phonological, Unrelated, Selected)%>%
+  write_rds("../saves/verbs.rds")
+```
+
+
+## DIF
+
+```{r}
+irt1_dif <- brm(
+  data = data%>%filter(target_word %in% verbs_selected),
+  family = brmsfamily("bernoulli", "identity"),
+  bf(
+    correct ~ 0.25 + 0.75 * inv_logit(eta),
+    eta ~ source + (0 + source | target_word) + (1 | id),
+    nl = TRUE
+  ),
+  prior = prior_1pl,
+  control = list(adapt_delta = 0.95, max_treedepth = 12),
+  cores = 4,
+  threads = threading(2), #backend = "cmdstanr",
+  chains = 4,
+  iter = 6000
+)%>%add_criterion(c("loo","waic")) 
+
+
+saveRDS(irt1_dif, "../saves/irt1_dif.rds")
+
+irt1_dif <- readRDS("../saves/irt1_dif.rds")
+```
+
+```{r}
+dif_source <- as_draws_df(irt1_dif)%>%
+  select(b_eta_Intercept, starts_with("r_target_word"))%>%
+  mutate(iter = 1:n()) %>%
+  pivot_longer(starts_with("r_target_word")) %>%
+  mutate(name = str_remove(name, pattern = "r_target_word__eta"),
+         name = str_remove_all(name, pattern = "\\[|\\]"))%>%
+  separate(name, into = c("item", "source"), sep = "\\,")%>%
+  mutate(source = str_remove(source, pattern = "source"),
+         val =  value)%>%
+  group_by(item, source)%>%
+  summarise(mode = estimate_mode(val),
+            uci = hdi_upper(val),
+            lci = hdi_lower(val))
+
+saveRDS(dif_source, "../saves/dif_source.rds")
+
+dif_source <- readRDS("../saves/dif_source.rds")
+
+dif_source%>%
+  group_by(item)%>%
+  mutate(dif = abs(abs(mode) - lag(abs(mode))))%>%
+  fill(dif, .direction = "up")%>%
+ggplot(.,aes(x = reorder(item, dif))) +
+	geom_point(aes(col = source, y = lci), position = position_dodge(width = .5)) +
+  geom_point(aes(col = source, y = uci), position = position_dodge(width = .5)) +
+  geom_linerange(aes(col = source, ymin = lci + 0.1, ymax = uci-0.1), position = position_dodge(width = .5), alpha = .5) +
+	coord_flip() +
+  scale_color_colorblind(labels = c("lg","lpz"), name = "Group")+
+	labs(x = "Item", y = "Easiness estimate")+
+  theme_minimal()
+```
+
+```{r}
+dif_source%>%
+  pivot_wider(names_from = source, values_from = c(mode,uci,lci))%>%
+  ggplot(., aes(x = mode_lpz, y = mode_lg))+
+  geom_abline(intercept = 0, slope = 1, lty = 3, alpha = .75)+
+  geom_point(pch = 1, size = 2, stroke  = 1)+
+  geom_linerange(aes(ymin = lci_lg, ymax = uci_lg),  alpha = .25, lty = 1)+
+  geom_linerange(aes(xmin = lci_lpz, xmax = uci_lpz),  alpha = .25, lty = 1)+
+  stat_cor(aes(x = mode_lpz, y = mode_lg,label = paste(..r.label..)),inherit.aes = F,r.accuracy = 0.01, cor.coef.name = "r")+
+  #geom_text(aes(label = item, x = uci_f +0.2))+
+  labs(x = "Group: lg", y = "Group: lpz")+
+  scale_color_viridis_d()+
+  guides(col = F)+
+  coord_fixed()+
+  theme_few()
+  
+```
+
+
 # Combined model verbs and nouns
 
 ```{r}
 selection <- c(unique(data$target_word[data$word_class == "noun"]), verbs_selected)
+```
+
+## Combined model
+
+```{r}
+irt1_c <- brm(
+  data = data%>%filter(target_word %in% selection),
+  family = brmsfamily("bernoulli", "identity"),
+  bf(
+    correct ~ 0.25 + 0.75 * inv_logit(eta),
+    eta ~ 1 + (1 | target_word) + (1 | id),
+    nl = TRUE
+  ),
+  prior = prior_1pl,
+  control = list(adapt_delta = 0.95, max_treedepth = 12),
+  cores = 4,
+  threads = threading(2), #backend = "cmdstanr",
+  chains = 4,
+  iter = 8000
+)%>%add_criterion(c("loo","waic")) 
+
+
+saveRDS(irt1_c, "../saves/irt1_c.rds")
+
+irt1_c <- readRDS("../saves/irt1_c.rds")
 ```
 
 ## Fit indices
@@ -622,7 +754,7 @@ freq_mirt_c <- mirt(frq_dat_c, 1, itemtype='Rasch', verbose=TRUE, guess = 0.25,n
 
 M2(freq_mirt_c)
 ```
-
+## Combined model
 
 ```{r}
 irt1_c <- brm(
@@ -636,9 +768,9 @@ irt1_c <- brm(
   prior = prior_1pl,
   control = list(adapt_delta = 0.95, max_treedepth = 12),
   cores = 4,
-  threads = threading(8), backend = "cmdstanr",
+  threads = threading(2), #backend = "cmdstanr",
   chains = 4,
-  iter = 4000
+  iter = 8000
 )%>%add_criterion(c("loo","waic")) 
 
 
@@ -661,6 +793,10 @@ icc1_c <- posterior_samples(irt1_c)%>%
   group_by(theta, item) %>% 
   summarise(p = mean(p))%>%
   left_join(data%>%rename(item = target_word)%>%select(item, word_class)%>%distinct(item, .keep_all = T))
+
+saveRDS(icc1_c, "../saves/icc1_c.rds")
+
+icc1_c <- readRDS("../saves/icc1_c.rds")
 ```
 
 ```{r}
@@ -679,18 +815,181 @@ icc1_c %>%
   theme(legend.position = c(0.9, 0.5))
 ```
 
+## Reliability
+
+```{r}
+frq_dat_v <- data%>%
+  filter(target_word %in% verbs_selected)%>%
+  distinct(id, target_word, .keep_all = T)%>%
+  select(id, target_word, correct)%>%
+  mutate(correct = as.numeric(correct))%>%
+  pivot_wider(names_from = target_word, values_from = correct)%>%
+  select( -id)%>%
+  na.omit()
+```
+
+
+### KR20
+
+```{r}
+kr20_v <- kr20(frq_dat_v, hit = 1)
+
+kr20_v%>%saveRDS("../saves/rel_v.rds")
+
+kr20_c <- kr20(frq_dat_c, hit = 1)
+
+kr20_c%>%saveRDS("../saves/rel_c.rds")
+```
+
+### Andrich Reliability
+
+```{r}
+pers_params <- ranef(irt1_c)$id%>%as_tibble(rownames = "id")
+
+andrich_rel <- 1 -
+  (1/length(pers_params$Estimate.eta_Intercept) * sum(pers_params$Est.Error.eta_Intercept^2))/
+  (1/(length(pers_params$Estimate.eta_Intercept)-1)*sum((pers_params$Estimate.eta_Intercept - mean(pers_params$Estimate.eta_Intercept))^2))
+
+andrich_rel
+```
+
+```{r}
+tibble(type = c("kr20", "andrich"),
+       rel = c(kr20_rel, andrich_rel))%>%
+  saveRDS("../saves/reliability.rds")
+```
+
+## Validity
+
+```{r}
+cord <- data%>%
+  filter(target_word %in% selection)%>%
+  group_by(word_class, id, age)%>%
+  summarise(perf = mean(correct))%>%
+  mutate(age_group = substr(age,1,1))%>%
+  pivot_wider(names_from = word_class, values_from = perf)%>%
+  ungroup()
+
+val <- cor.test(cord$noun, cord$verb)
+
+saveRDS(val, "../saves/val.rds")
+```
+
+
 # Visuals
 
 ```{r}
-psize <- determine_size_v%>%
-  mutate(ratio = ifelse(elpd_diff == 0,0,ratio))%>%
-  pivot_longer(cols = c(ratio), names_to = "type",values_to = "value")%>% 
-  ggplot(aes(x = factor(size), y = value))+
-  geom_hline(yintercept = 1, lty = 3, alpha =0.75)+
-  geom_point(pch = 1, size = 3)+
+pac <- data%>%
+  group_by(word_class, id, age)%>%
+  summarise(perf = mean(correct))%>%
+  ggplot(aes(x = age, y = perf, col = word_class, fill = word_class))+
+  geom_hline(yintercept = 0.25, lty = 3, alpha = 0.5)+
+  geom_point(pch = 1, alpha = 0.5)+
+  #geom_smooth(method = "loess", alpha = .2)+
+  geom_smooth(data = post, aes(x = age, y = Estimate, ymin = Q2.5, ymax = Q97.5, fill =word_class, col = word_class), stat = "identity", alpha = .25)+
+  lims(y = c(0,1)) +
+  labs(x = "Age in years", y = "Proportion correct")+
+  scale_x_continuous(breaks = c(3, 4, 5, 6, 7, 8))+
+  scale_color_colorblind(name = "")+
+  scale_fill_colorblind(name = "")+
+  #facet_grid(~word_type)+
+  theme_few()+
+  theme(legend.position = c(0.85, 0.15))
+  
+
+pcor <- data%>%
+  #filter(target_word %in% selection)%>%
+  group_by(word_class, id, age)%>%
+  summarise(perf = mean(correct))%>%
+  pivot_wider(names_from = word_class, values_from = perf)%>%
+  ggplot(aes(x = verb, y = noun, col = age))+
+  geom_hline(yintercept = 0.25, lty = 3, alpha = 0.5)+
+  geom_vline(xintercept = 0.25, lty = 3, alpha = 0.5)+
+  geom_jitter(pch = 1, alpha = 0.5, height = 0.01, width = 0.01)+
+  geom_smooth(method = "lm", alpha = .2, col = "black")+
+  lims(x = c(0,1), y = c(0,1))+
+  stat_cor(aes(x = verb, y = noun,label = paste(..r.label..)),inherit.aes = F,r.accuracy = 0.01, cor.coef.name = "r")+
+  labs(x = "Verbs (prop. correct)", y = "Nouns (prop. correct)")+
+  scale_color_viridis_c(name = "Child age")+
+  #facet_grid(~word_type)+
+  theme_few()+
+  theme(legend.position = c(0.7, 0.15), legend.direction = "horizontal", legend.title.position = "top")
+
+```
+
+```{r}
+# img <- image_read("../visuals/task.pdf", density = 300)
+# img <- image_convert(img, format = "png")  # convert to raster-friendly format
+# img_grob <- rasterGrob(as.raster(img), interpolate = TRUE)
+# img_plot <- ggdraw() +
+#   draw_grob(img_grob)
+
+```
+
+```{r}
+plot_grid(pac, pcor, rel_widths = c(1.5,1), labels = c("A", "B"), align = "h")
+```
+
+```{r}
+ggsave("../visuals/fig2.pdf", width = 10, height = 4, scale = 1)
+```
+
+
+```{r}
+psize <- readRDS("../saves/determine_size_v.rds")%>%
+  mutate(ratio = abs(elpd_diff) / (2*se_diff))%>%
+  mutate(ratio = ifelse( elpd_diff == 0,0,ratio))%>%
+  filter(ratio != 0)%>%
+  mutate(ratio = ifelse(model == "m2PL", ratio*-1, ratio))%>%
+  arrange(iter, size)%>%
+  #pivot_longer(cols = c(ratio, correlation), names_to = "type",values_to = "value")%>%
+  ggplot(aes(y = factor(size), x = ratio, group = factor(iter)))+
+  geom_vline(xintercept = c(-1,1), alpha = 1, lty = 3)+
+  geom_vline(xintercept = 0, col = "black", lty = 1, size = 1)+
+  geom_point(alpha = .5, size = 3)+
+  #geom_line(aes(group = size), alpha = .25)+
+  #geom_path(aes(group = iter), alpha = .25)+
+  scale_y_discrete(breaks = c(5:18))+
+  scale_x_continuous( limits = c(-3,3), breaks = c(-2, -1, 0, 1, 2), labels = c("2.00","1.00","0.00", "1.00","2.00"))+
+  scale_color_ptol(guide = "none")+
   #geom_line()+
   #facet_grid(type~. , scales = "free_y")+
   theme_bw()+
-  labs(x = "No. of items", y = expression(paste("Model comparison: ", frac(Delta ~ elpd, "2 *"~SE(Delta ~ elpd)))))
+  theme(panel.grid.minor = element_blank())+
+  labs(y = "No. of items in subset", x = expression(paste("Model comparison: ", frac(Delta ~ elpd, "2 *"~SE(Delta ~ elpd)))))+
+  annotation_custom(textGrob("1PL wins", 
+                             gp=gpar(fontsize=13,
+                                     col = "black", 
+                                     fontface="bold")),
+                    xmin=-2, xmax=-2, ymin="10", ymax="10") +
+  annotation_custom(textGrob("2PL wins",
+                             gp=gpar(fontsize=13,
+                                     col = "black",
+                                     fontface="bold")),
+                    xmin=2, xmax=2, ymin="10", ymax="10")#+
+  theme(
+        panel.grid.major.y = element_line(size = 0.1))
+
+
+p_icc <- icc1_c %>% 
+  ggplot(aes(x = theta, y = p,group = item, col = word_class)) +
+  geom_line() +
+  #facet_wrap(~word_class)+
+  #guides(col = F)+
+  geom_hline(yintercept = 0.25, lty = 3, alpha = .75)+
+  scale_color_manual(name = "Word class", values = c("lightgrey", "#CC6677")) +
+  labs(#title = "ICCs for the 1PL",
+       x = expression(theta~('ability on the logit scale')),
+       y = expression(italic(p)(y==1))) +
+  ylim(0,1)+
+  theme_few()+
+  theme(legend.position = c(0.9, 0.5))
 ```
 
+```{r}
+plot_grid(psize, p_icc, rel_widths = c(1,1.5), labels = c("A", "B"), align = "h")
+```
+
+```{r}
+ggsave("../visuals/fig3.pdf", width = 10, height = 4, scale = 1)
+```
